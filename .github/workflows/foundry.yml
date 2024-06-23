@@ -1,0 +1,50 @@
+name: Foundry tests
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  check:
+    strategy:
+      fail-fast: true
+
+    name: Foundry tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: python3 -m pip install slither-analyzer
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run Forge build
+        run: |
+          forge --version
+          forge build --sizes
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+
+      - name: Run coverage benchmark
+        run: |
+          forge coverage --ir-minimum
+
+      # - uses: crytic/slither-action@v0.4.0
+      #   with:
+      #     target: 'src/Sponsorship.sol'
+      #     slither-args: --exclude incorrect-exponentiation
+      #     solc-version: 0.8.23
+
