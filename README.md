@@ -1,9 +1,3 @@
-## To deploy
-
-> $ forge create --rpc-url https://polygon-mumbai.blockpi.network/v1/rpc/13c5d21c24d2294c5d27ba45c3e63d92b038036d --private-key <private_key> src/Sponsorship.sol:Sponsorship --etherscan-api-key <API_KEY_ETHERSCAN> --verify --constructor-args <USDT_TOKEN_ADDRESS> <FEE_RECEIVER_ADDRESS>
-
-Abstract the function that will return true if user can accept reject offer
-
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
