@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 enum IdoStatus {
     ACTIVE,
@@ -56,6 +57,8 @@ struct SponsorOffer {
 }
 
 contract CollateralVault is ReentrancyGuard {
+    using SafeERC20 for IERC20;
+    
     IERC20 public USDT_TOKEN;
     mapping(address account => uint256 amount) balance;
     mapping(address account => mapping(uint256 reason => uint256 amount)) spent;
@@ -68,6 +71,7 @@ contract CollateralVault is ReentrancyGuard {
     }
 
     function depositCollateral(uint256 amount_) public virtual nonReentrant {
+        require(amount_ > 0, "Zero deposit amount is not allowed");
         address depositor = msg.sender;
         require(
             USDT_TOKEN.balanceOf(depositor) >= amount_,
@@ -78,14 +82,11 @@ contract CollateralVault is ReentrancyGuard {
             "Insufficient USD token spending allowance"
         );
         balance[depositor] += amount_;
-        bool success = USDT_TOKEN.transferFrom(
+        USDT_TOKEN.safeTransferFrom(
             depositor,
             address(this),
             amount_
         );
-        if (!success) {
-            revert("USD transfer failed");
-        }
         emit CollateralDeposited(depositor, amount_);
     }
 
@@ -95,10 +96,7 @@ contract CollateralVault is ReentrancyGuard {
         require(amount_ > 0, "Zero amount withdrawal is not allowed");
         require(_balance >= amount_, "Withdraw amount greater than balance");
         balance[depositor] -= amount_;
-        bool success = USDT_TOKEN.transfer(depositor, amount_);
-        if (!success) {
-            revert("USD transfer failed");
-        }
+        USDT_TOKEN.safeTransfer(depositor, amount_);
         emit CollateralWithdrew(depositor, amount_);
     }
 
@@ -133,6 +131,7 @@ contract Sponsorship is
 {
     using EnumerableSet for EnumerableSet.UintSet;
     using Strings for string;
+    using SafeERC20 for IERC20;
 
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
@@ -595,23 +594,19 @@ contract Sponsorship is
             if (sponsorOfferMap[offerId].idoId != idoId) {
                 continue;
             }
-            winningOfferIdListByIdo[idoId].add(offerId);
-            totalCollateralAmount += sponsorOfferMap[offerId].ticketSize;
-            bool success = USDT_TOKEN.transfer(
-                sponsorOfferMap[offerId].receiver,
-                sponsorOfferMap[offerId].sponsorAmount
-            );
-            if (!success) {
-                revert("USD transfer failed");
+            if(!winningOfferIdListByIdo[idoId].contains(offerId)) {
+                winningOfferIdListByIdo[idoId].add(offerId);
+                totalCollateralAmount += sponsorOfferMap[offerId].ticketSize;
+                USDT_TOKEN.safeTransfer(
+                    sponsorOfferMap[offerId].receiver,
+                    sponsorOfferMap[offerId].sponsorAmount
+                );
             }
         }
-        bool _success = USDT_TOKEN.transfer(
+        USDT_TOKEN.safeTransfer(
             idoEventMap[idoId].fundReceiverAddress,
             totalCollateralAmount
         );
-        if (!_success) {
-            revert("USD transfer failed");
-        }
     }
 
     //###################################################
